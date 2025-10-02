@@ -28,6 +28,15 @@
       color: var(--primary);
       text-align: center;
     }
+    .topic {
+  text-align: center;
+  font-size: 24px;
+  font-weight: bold;
+  margin: 10px 0;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
     
     button, .button {
       background: var(--primary);
@@ -97,9 +106,10 @@
 </head>
 <body>
   <header>
-    <h1 tabindex="0">Audio Daily Assistant</h1>
-    <p tabindex="0">A voice-controlled assistant for visually impaired users</p>
-  </header>
+  <h1 tabindex="0">Audio Daily Assistant</h1>
+  <div class="topic" tabindex="0">A VOICE CONTROLLED ASSISTANT FOR VISUALLY IMPAIRED USERS</div>
+  <p tabindex="0">A voice-controlled assistant for visually impaired users</p>
+</header>
   
   <main>
     <section aria-labelledby="time-heading">
@@ -338,4 +348,5 @@
     }, 60000);
   </script>
 </body>
+
 </html>
