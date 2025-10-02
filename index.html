@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Voice Assistant for Visually Impaired</title>
+  <style>
+    /* High Contrast Theme */
+    :root {
+      --bg: #866e88;
+      --text: #FFFFFF;
+      --primary: #FFA500;
+      --secondary: #4169E1;
+      --danger: #FF0000;
+    }
+    
+    body {
+      font-family: Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    
+    h1, h2 {
+      color: var(--primary);
+      text-align: center;
+    }
+    
+    button, .button {
+      background: var(--primary);
+      color: #000;
+      border: none;
+      padding: 15px 25px;
+      font-size: 18px;
+      margin: 10px 5px;
+      border-radius: 5px;
+      cursor: pointer;
+      display: inline-block;
+      text-align: center;
+      min-width: 150px;
+    }
+    
+    button:focus, .button:focus {
+      outline: 3px solid var(--text);
+      outline-offset: 2px;
+    }
+    
+    .emergency {
+      background: var(--danger);
+      color: white;
+    }
+    
+    .utility {
+      background: var(--secondary);
+      color: white;
+    }
+    
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin: 30px 0;
+    }
+    
+    .status {
+      border: 2px solid var(--primary);
+      padding: 15px;
+      margin: 20px 0;
+      min-height: 60px;
+    }
+    
+    /* Hidden visually but accessible to screen readers */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border-width: 0;
+    }
+    
+    /* Responsive Design */
+    @media (max-width: 600px) {
+      button, .button {
+        width: 100%;
+        margin: 5px 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1 tabindex="0">Audio Daily Assistant</h1>
+    <p tabindex="0">A voice-controlled assistant for visually impaired users</p>
+  </header>
+  
+  <main>
+    <section aria-labelledby="time-heading">
+      <h2 id="time-heading" tabindex="0">Time Utilities</h2>
+      <div class="controls">
+        <button id="readTime" aria-label="Press to hear current time">Read Time</button>
+        <button id="readDate" aria-label="Press to hear today's date">Read Date</button>
+        <button id="setAlarm" class="utility" aria-label="Set an alarm">Set Alarm</button>
+      </div>
+    </section>
+    
+    <section aria-labelledby="tools-heading">
+      <h2 id="tools-heading" tabindex="0">Daily Tools</h2>
+      <div class="controls">
+        <button id="startVoiceNote" class="utility" aria-label="Record a voice note">Record Note</button>
+        <button id="playVoiceNote" class="utility" aria-label="Play saved voice notes">Play Notes</button>
+        <button id="checkWeather" aria-label="Check current weather">Weather</button>
+      </div>
+    </section>
+    
+    <section aria-labelledby="emergency-heading">
+      <h2 id="emergency-heading" tabindex="0">Emergency</h2>
+      <div class="controls">
+        <button id="emergencyCall" class="emergency" aria-label="Emergency call to saved contact">
+          Call for Help
+        </button>
+        <button id="locationInfo" class="utility" aria-label="Get location information">
+          Where Am I?
+        </button>
+      </div>
+    </section>
+    
+    <div class="status" id="statusMessage" aria-live="polite" tabindex="0">
+      Ready to assist you. Press any button or use keyboard shortcuts.
+    </div>
+    
+    <!-- Hidden audio elements -->
+    <audio id="alarmSound" src="https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3"></audio>
+    <audio id="confirmationSound" src="https://assets.mixkit.co/sfx/preview/mixkit-positive-interface-beep-221.mp3"></audio>
+  </main>
+  
+  <footer tabindex="0">
+    <p>Keyboard Shortcuts: T for Time, D for Date, W for Weather, E for Emergency</p>
+  </footer>
+
+  <script>
+    // DOM Elements
+    const statusMessage = document.getElementById('statusMessage');
+    const alarmSound = document.getElementById('alarmSound');
+    const confirmationSound = document.getElementById('confirmationSound');
+    
+    // Speech Synthesis
+    const speech = new SpeechSynthesisUtterance();
+    speech.rate = 0.9;
+    speech.pitch = 1;
+    
+    // Voice Note Recording
+    let voiceNotes = [];
+    let mediaRecorder;
+    let audioChunks = [];
+    
+    // User Preferences (would normally be saved to localStorage)
+    const userPrefs = {
+      emergencyContact: "911",
+      location: "Unknown",
+      alarmTime: null
+    };
+    
+    // Initialize
+    window.addEventListener('DOMContentLoaded', () => {
+      speak("Daily Assistant loaded. Press any button or use keyboard shortcuts.");
+      updateStatus("Ready");
+      
+      // Check for geolocation permission
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          position => {
+            userPrefs.location = `Latitude ${position.coords.latitude}, Longitude ${position.coords.longitude}`;
+          },
+          error => {
+            console.error("Geolocation error:", error);
+          }
+        );
+      }
+    });
+    
+    // Core Functions
+    function speak(text) {
+      speech.text = text;
+      window.speechSynthesis.cancel(); // Stop any current speech
+      window.speechSynthesis.speak(speech);
+      updateStatus(text);
+    }
+    
+    function updateStatus(text) {
+      statusMessage.textContent = text;
+      statusMessage.focus();
+    }
+    
+    function playSound(audioElement) {
+      audioElement.currentTime = 0;
+      audioElement.play();
+    }
+    
+    // Feature Implementations
+    document.getElementById('readTime').addEventListener('click', () => {
+      const now = new Date();
+      const time = now.toLocaleTimeString();
+      speak(`The time is ${time}`);
+    });
+    
+    document.getElementById('readDate').addEventListener('click', () => {
+      const now = new Date();
+      const date = now.toLocaleDateString('en-US', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+      speak(`Today is ${date}`);
+    });
+    
+    document.getElementById('setAlarm').addEventListener('click', () => {
+      speak("Setting alarm for 30 seconds from now");
+      userPrefs.alarmTime = Date.now() + 30000; // 30 seconds later
+      setTimeout(() => {
+        playSound(alarmSound);
+        speak("Alarm! Alarm! Wake up!");
+      }, 30000);
+    });
+    
+    document.getElementById('startVoiceNote').addEventListener('click', async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+        
+        mediaRecorder.ondataavailable = event => {
+          audioChunks.push(event.data);
+        };
+        
+        mediaRecorder.onstop = () => {
+          const audioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
+          voiceNotes.push(audioBlob);
+          playSound(confirmationSound);
+          speak("Note saved. You have " + voiceNotes.length + " notes recorded.");
+        };
+        
+        mediaRecorder.start();
+        speak("Recording started. Press this button again to stop.");
+        updateStatus("Recording... Press button to stop");
+      } catch (error) {
+        speak("Cannot access microphone. Please check permissions.");
+      }
+    });
+    
+    // Toggle recording stop on same button
+    document.getElementById('startVoiceNote').addEventListener('click', function handler() {
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+        this.removeEventListener('click', handler);
+      }
+    }, { once: true });
+    
+    document.getElementById('playVoiceNote').addEventListener('click', () => {
+      if (voiceNotes.length === 0) {
+        speak("No voice notes saved yet.");
+        return;
+      }
+      
+      speak("Playing your " + voiceNotes.length + " saved notes");
+      voiceNotes.forEach((note, index) => {
+        const audioURL = URL.createObjectURL(note);
+        const audio = new Audio(audioURL);
+        setTimeout(() => {
+          audio.play();
+        }, index * 3000); // Play each note with 3-second delay
+      });
+    });
+    
+    document.getElementById('checkWeather').addEventListener('click', () => {
+      // In a real app, this would fetch from a weather API
+      const fakeWeather = {
+        temp: Math.round(Math.random() * 30) + 10,
+        condition: ["sunny", "cloudy", "rainy"][Math.floor(Math.random() * 3)]
+      };
+      
+      speak(`Current weather is ${fakeWeather.condition} with temperature of ${fakeWeather.temp} degrees Celsius`);
+    });
+    
+    document.getElementById('emergencyCall').addEventListener('click', () => {
+      speak(`Calling emergency contact at ${userPrefs.emergencyContact}. Press any key to cancel.`);
+      
+      // Countdown before simulated call
+      let countdown = 5;
+      const timer = setInterval(() => {
+        speak(countdown);
+        countdown--;
+        
+        if (countdown < 0) {
+          clearInterval(timer);
+          speak(`Connecting to ${userPrefs.emergencyContact}. This would initiate a real call in a production app.`);
+        }
+      }, 1000);
+      
+      // Cancel on any key press
+      const cancelCall = () => {
+        clearInterval(timer);
+        speak("Emergency call cancelled");
+        document.removeEventListener('keydown', cancelCall);
+      };
+      
+      document.addEventListener('keydown', cancelCall);
+    });
+    
+    document.getElementById('locationInfo').addEventListener('click', () => {
+      speak(`Your location is: ${userPrefs.location}. In a real app, this would use GPS.`);
+    });
+    
+    // Keyboard Shortcuts
+    document.addEventListener('keydown', (e) => {
+      switch(e.key.toLowerCase()) {
+        case 't': document.getElementById('readTime').click(); break;
+        case 'd': document.getElementById('readDate').click(); break;
+        case 'w': document.getElementById('checkWeather').click(); break;
+        case 'e': document.getElementById('emergencyCall').click(); break;
+      }
+    });
+    
+    // Continuous time announcement (hourly)
+    setInterval(() => {
+      const now = new Date();
+      if (now.getMinutes() === 0) {
+        speak(`It's now ${now.getHours()} o'clock`);
+      }
+    }, 60000);
+  </script>
+</body>
+</html>
